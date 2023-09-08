@@ -62,21 +62,41 @@ public class KisaKnifeAdder : EditorWindow
     p.saved = true;
   }
 
-  static AnimatorControllerLayer init_layer(string name)
+  static AnimatorControllerLayer init_layer(AnimatorController fx_ctrl, string name)
   {
-    AnimatorControllerLayer l = new AnimatorControllerLayer();
-    l.name = name;
-    l.defaultWeight = 1;
-    return l;
+    fx_ctrl.AddLayer(name);
+    AnimatorControllerLayer layer = fx_ctrl.layers[fx_ctrl.layers.Length - 1];
+
+    EditorUtility.SetDirty(layer.stateMachine);
+
+    //AssetDatabase.AddObjectToAsset(layer.stateMachine, fx_ctrl);
+
+    return layer;
   }
 
-  static AnimatorStateTransition init_transition(AnimatorState destination, float duration=0, float exit_time=0)
+  static AnimatorState init_state(AnimatorController fx_ctrl, AnimatorControllerLayer layer, string name, string anim_path, Vector3 pos)
+  {
+    AnimatorState s = layer.stateMachine.AddState(name, pos);
+    s.motion = AssetDatabase.LoadAssetAtPath<AnimationClip>(anim_path);
+
+    //AssetDatabase.AddObjectToAsset(s, fx_ctrl);
+    EditorUtility.SetDirty(s);
+
+    return s;
+  }
+
+  static AnimatorStateTransition init_transition(AnimatorController fx_ctrl, AnimatorState destination, float duration=0, float exit_time=0)
   {
     AnimatorStateTransition t = new AnimatorStateTransition();
     t.duration = duration;
     t.exitTime = exit_time;
     t.hasExitTime = exit_time > 1e-6f;
     t.destinationState = destination;
+
+    AssetDatabase.AddObjectToAsset(t, fx_ctrl);
+    t.hideFlags = HideFlags.HideInHierarchy;
+    EditorUtility.SetDirty(t);
+
     return t;
   }
 
@@ -105,6 +125,8 @@ public class KisaKnifeAdder : EditorWindow
       set_vrc_param(name, new_vrc_param);
       new_params.Add(new_vrc_param);
       para.parameters = new_params.ToArray();
+
+      EditorUtility.SetDirty(para); //need to do this otherwise expression parameters don't save after re-opening unity
     }
   }
 
@@ -180,7 +202,6 @@ public class KisaKnifeAdder : EditorWindow
             type = AnimatorControllerParameterType.Bool
           });
           addExpressionParameter(name, ref vrc_params);
-          EditorUtility.SetDirty(vrc_params); //need to do this otherwise expression parameters don't save after re-opening unity
         }
       }
 
@@ -206,103 +227,81 @@ public class KisaKnifeAdder : EditorWindow
       //add legstrap layer
       if (layers_to_add.Contains("Knife_legstrap"))
       {
-        AnimatorControllerLayer layer = init_layer("Knife_legstrap");
+        AnimatorControllerLayer layer = init_layer(fx_ctrl, "Knife_legstrap");
 
         //create states
-        AnimatorState knifehip = layer.stateMachine.AddState("KnifeHip");
-        AnimatorState knifehandleft = layer.stateMachine.AddState("knifeHandLeft");
-        AnimatorState knifehand = layer.stateMachine.AddState("KnifeHand");
-
-        //set animations for the states
-        knifehip.motion = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/kisa/knife+legstrap/KnifeHip.anim");
-        knifehandleft.motion = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/kisa/knife+legstrap/knifeHandLeft.anim");
-        knifehand.motion = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/kisa/knife+legstrap/KnifeHand.anim");
+        AnimatorState knifehip = init_state(fx_ctrl, layer, "KnifeHip", "Assets/kisa/knife+legstrap/KnifeHip.anim", new Vector3(250, 100, 0));
+        AnimatorState knifehandleft = init_state(fx_ctrl, layer, "knifeHandLeft", "Assets/kisa/knife+legstrap/knifeHandLeft.anim", new Vector3(400, 175, 0));
+        AnimatorState knifehand = init_state(fx_ctrl, layer, "KnifeHand", "Assets/kisa/knife+legstrap/KnifeHand.anim", new Vector3(400, 25, 0));
 
         //make transitions
 
         //hip <-> right hand
-        AnimatorStateTransition hip_to_hand = init_transition(knifehand, 0.01f);
+        AnimatorStateTransition hip_to_hand = init_transition(fx_ctrl, knifehand, 0.01f);
         hip_to_hand.AddCondition(AnimatorConditionMode.If, 0, "Grab");
         hip_to_hand.AddCondition(AnimatorConditionMode.Equals, 1, "GestureRight");
         knifehip.AddTransition(hip_to_hand);
 
-        AnimatorStateTransition hand_to_hip = init_transition(knifehip, 0.01f);
+        AnimatorStateTransition hand_to_hip = init_transition(fx_ctrl, knifehip, 0.01f);
         hand_to_hip.AddCondition(AnimatorConditionMode.If, 0, "Grab");
         hand_to_hip.AddCondition(AnimatorConditionMode.NotEqual, 1, "GestureRight");
         knifehand.AddTransition(hand_to_hip);
 
         //hip <-> left hand
-        AnimatorStateTransition hip_to_hand_left = init_transition(knifehandleft, 0.01f);
+        AnimatorStateTransition hip_to_hand_left = init_transition(fx_ctrl, knifehandleft, 0.01f);
         hip_to_hand_left.AddCondition(AnimatorConditionMode.If, 0, "Grab");
         hip_to_hand_left.AddCondition(AnimatorConditionMode.Equals, 1, "GestureLeft");
         knifehip.AddTransition(hip_to_hand_left);
 
-        AnimatorStateTransition hand_to_hip_left = init_transition(knifehip, 0.01f);
+        AnimatorStateTransition hand_to_hip_left = init_transition(fx_ctrl, knifehip, 0.01f);
         hand_to_hip_left.AddCondition(AnimatorConditionMode.If, 0, "Grab");
         hand_to_hip_left.AddCondition(AnimatorConditionMode.NotEqual, 1, "GestureLeft");
         knifehandleft.AddTransition(hand_to_hip);
 
         //hand swap
-        AnimatorStateTransition right_to_left = init_transition(knifehandleft, 0.01f);
+        AnimatorStateTransition right_to_left = init_transition(fx_ctrl, knifehandleft, 0.01f);
         right_to_left.AddCondition(AnimatorConditionMode.If, 0, "KnifeSwap");
         right_to_left.AddCondition(AnimatorConditionMode.Equals, 2, "GestureRight");
         right_to_left.AddCondition(AnimatorConditionMode.Equals, 1, "GestureLeft");
         knifehand.AddTransition(right_to_left);
 
-        AnimatorStateTransition left_to_right = init_transition(knifehand, 0.01f);
+        AnimatorStateTransition left_to_right = init_transition(fx_ctrl, knifehand, 0.01f);
         left_to_right.AddCondition(AnimatorConditionMode.If, 0, "KnifeSwap");
         left_to_right.AddCondition(AnimatorConditionMode.Equals, 2, "GestureLeft");
         left_to_right.AddCondition(AnimatorConditionMode.Equals, 1, "GestureRight");
         knifehandleft.AddTransition(left_to_right);
 
-        fx_ctrl.AddLayer(layer);
-
-        //annoying saving things :(
-        EditorUtility.SetDirty(knifehip);
-        EditorUtility.SetDirty(knifehandleft);
-        EditorUtility.SetDirty(knifehand);
-
-        EditorUtility.SetDirty(hip_to_hand);
-        EditorUtility.SetDirty(hand_to_hip);
-        EditorUtility.SetDirty(hip_to_hand_left);
-        EditorUtility.SetDirty(hand_to_hip_left);
-        EditorUtility.SetDirty(right_to_left);
-        EditorUtility.SetDirty(left_to_right);
+        //set layer weight
+        AnimatorControllerLayer[] layers = fx_ctrl.layers;
+        layers[fx_ctrl.layers.Length - 1].defaultWeight = 1;
+        fx_ctrl.layers = layers;
 
         EditorUtility.SetDirty(fx_ctrl);
       }
       //add knife sheath layer
       if (layers_to_add.Contains("Knife_sheath_open"))
       {
-        AnimatorControllerLayer layer = init_layer("Knife_sheath_open");
+        AnimatorControllerLayer layer = init_layer(fx_ctrl, "Knife_sheath_open");
 
         //create states
-        AnimatorState sheathclose = layer.stateMachine.AddState("knifeSheathClose");
-        AnimatorState sheathopen = layer.stateMachine.AddState("knifeSheathOpen");
-
-        //set animations for the states
-        sheathclose.motion = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/kisa/knife+legstrap/knifeSheathClose.anim");
-        sheathopen.motion = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/kisa/knife+legstrap/knifeSheathOpen.anim");
+        AnimatorState sheathclose = init_state(fx_ctrl, layer, "knifeSheathClose", "Assets/kisa/knife+legstrap/knifeSheathClose.anim", new Vector3(250, 100, 0));
+        AnimatorState sheathopen = init_state(fx_ctrl, layer, "knifeSheathOpen", "Assets/kisa/knife+legstrap/knifeSheathOpen.anim", new Vector3(500, 100, 0));
 
         //make transitions
 
         //hip <-> right hand
-        AnimatorStateTransition close_to_open = init_transition(sheathopen, 0.25f, 0.75f);
+        AnimatorStateTransition close_to_open = init_transition(fx_ctrl, sheathopen, 0.25f, 0.75f);
         close_to_open.AddCondition(AnimatorConditionMode.If, 0, "Grab");
         sheathclose.AddTransition(close_to_open);
 
-        AnimatorStateTransition open_to_close = init_transition(sheathclose, 0.25f, 0.75f);
+        AnimatorStateTransition open_to_close = init_transition(fx_ctrl, sheathclose, 0.25f, 0.75f);
         open_to_close.AddCondition(AnimatorConditionMode.If, 0, "Grab");
         sheathopen.AddTransition(open_to_close);
 
-        fx_ctrl.AddLayer(layer);
-
-        //save :(
-        EditorUtility.SetDirty(sheathclose);
-        EditorUtility.SetDirty(sheathopen);
-
-        EditorUtility.SetDirty(close_to_open);
-        EditorUtility.SetDirty(open_to_close);
+        //set layer weight
+        AnimatorControllerLayer[] layers = fx_ctrl.layers;
+        layers[fx_ctrl.layers.Length - 1].defaultWeight = 1;
+        fx_ctrl.layers = layers;
 
         EditorUtility.SetDirty(fx_ctrl);
       }
