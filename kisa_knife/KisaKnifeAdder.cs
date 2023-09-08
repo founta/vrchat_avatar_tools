@@ -13,7 +13,6 @@ public class KisaKnifeAdder : EditorWindow
 {
 
   public VRCAvatarDescriptor avatar = null;
-  public AnimatorController fx_ctrl = null;
   public Dictionary<string, string> boneDestinations = new Dictionary<string, string> {
     {"legstrap_joined", "UpperLeg_R"},
     {"sheath", "UpperLeg_R" },
@@ -68,9 +67,6 @@ public class KisaKnifeAdder : EditorWindow
     AnimatorControllerLayer layer = fx_ctrl.layers[fx_ctrl.layers.Length - 1];
 
     EditorUtility.SetDirty(layer.stateMachine);
-
-    //AssetDatabase.AddObjectToAsset(layer.stateMachine, fx_ctrl);
-
     return layer;
   }
 
@@ -79,9 +75,7 @@ public class KisaKnifeAdder : EditorWindow
     AnimatorState s = layer.stateMachine.AddState(name, pos);
     s.motion = AssetDatabase.LoadAssetAtPath<AnimationClip>(anim_path);
 
-    //AssetDatabase.AddObjectToAsset(s, fx_ctrl);
     EditorUtility.SetDirty(s);
-
     return s;
   }
 
@@ -137,7 +131,6 @@ public class KisaKnifeAdder : EditorWindow
   {
     EditorGUILayout.BeginVertical();
     avatar = EditorGUILayout.ObjectField("Avatar", avatar, typeof(VRCAvatarDescriptor), true) as VRCAvatarDescriptor;
-    fx_ctrl = EditorGUILayout.ObjectField("FX controller", fx_ctrl, typeof(AnimatorController), true) as AnimatorController;
     EditorGUILayout.EndVertical();
 
     if (GUILayout.Button("Add knife!"))
@@ -145,11 +138,6 @@ public class KisaKnifeAdder : EditorWindow
       if (avatar == null)
       {
         ShowNotification(new GUIContent("No avatar selected!"));
-        return;
-      }
-      if (fx_ctrl == null)
-      {
-        ShowNotification(new GUIContent("No FX controller selected!"));
         return;
       }
 
@@ -173,6 +161,22 @@ public class KisaKnifeAdder : EditorWindow
             //move the armature to the correct location on the avatar
             Undo.SetTransformParent(knife_arm_component, bone.transform, $"knife armature: knife {pair.Key} -> velle {pair.Value}");
           }
+        }
+      }
+
+      //find the fx layer in the avatar descriptor
+      AnimatorController fx_ctrl = null;
+      VRCAvatarDescriptor.CustomAnimLayer[] all_anim_layers = avatar.baseAnimationLayers;
+      foreach (VRCAvatarDescriptor.CustomAnimLayer l in all_anim_layers)
+      {
+        if (l.type == VRCAvatarDescriptor.AnimLayerType.FX)
+        {
+          if (l.isDefault)
+          {
+            ShowNotification(new GUIContent("Selected avatar has no FX controller!"));
+            return;
+          }
+          fx_ctrl = l.animatorController as AnimatorController;
         }
       }
 
@@ -224,7 +228,9 @@ public class KisaKnifeAdder : EditorWindow
         }
       }
 
+
       //add legstrap layer
+      bool added = false;
       if (layers_to_add.Contains("Knife_legstrap"))
       {
         AnimatorControllerLayer layer = init_layer(fx_ctrl, "Knife_legstrap");
@@ -277,6 +283,8 @@ public class KisaKnifeAdder : EditorWindow
         fx_ctrl.layers = layers;
 
         EditorUtility.SetDirty(fx_ctrl);
+
+        added = true;
       }
       //add knife sheath layer
       if (layers_to_add.Contains("Knife_sheath_open"))
@@ -304,10 +312,21 @@ public class KisaKnifeAdder : EditorWindow
         fx_ctrl.layers = layers;
 
         EditorUtility.SetDirty(fx_ctrl);
+
+        added = true;
       }
 
       //save all changes
       AssetDatabase.SaveAssets();
+
+      if (added)
+      {
+        ShowNotification(new GUIContent("Knife added to avatar!"));
+      }
+      else
+      {
+        ShowNotification(new GUIContent("Knife had already beed added; nothing to do!"));
+      }
     }
   }
 };
