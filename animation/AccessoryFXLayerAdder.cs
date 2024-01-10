@@ -77,10 +77,19 @@ public class AccessoryFXLayerAdder : EditorWindow
 
             //now save all of the new objects into the asset so they recover on reloading the project ;)
             AssetDatabase.AddObjectToAsset(default_state, fx_ctrl);
+            default_state.hideFlags = HideFlags.HideInHierarchy;
+
             AssetDatabase.AddObjectToAsset(acc_on_state, fx_ctrl);
+            acc_on_state.hideFlags = HideFlags.HideInHierarchy;
+
             AssetDatabase.AddObjectToAsset(layer.stateMachine, fx_ctrl);
+            layer.stateMachine.hideFlags = HideFlags.HideInHierarchy;
+
             AssetDatabase.AddObjectToAsset(default_to_on, fx_ctrl);
+            default_to_on.hideFlags = HideFlags.HideInHierarchy;
+
             AssetDatabase.AddObjectToAsset(on_to_exit, fx_ctrl);
+            on_to_exit.hideFlags = HideFlags.HideInHierarchy;
 
             ///now add the parameter to the VR chat expressions parameter
             //first check if there's an empty spot in the parameters array and use that if so
@@ -105,7 +114,7 @@ public class AccessoryFXLayerAdder : EditorWindow
                 vrc_params.parameters = mut_params.ToArray();
                 vrc_params.MarkDirty();
             }
-
+            EditorUtility.SetDirty(vrc_params);
             //save everything
             AssetDatabase.SaveAssets();
         }
