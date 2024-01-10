@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
-using System.Linq;
-using Codice.CM.Common;
 using VRC.Core;
 using UnityEditor.Animations;
 using VRC.SDK3.Avatars.ScriptableObjects;
