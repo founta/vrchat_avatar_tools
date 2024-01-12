@@ -7,6 +7,8 @@ using VRC.SDK3.Avatars.ScriptableObjects;
 using VRC.SDK3.Avatars.Components;
 using System;
 
+using static founta_common;
+
 public class KisaKnifeAdder : EditorWindow
 {
 
@@ -20,107 +22,6 @@ public class KisaKnifeAdder : EditorWindow
     {"knifehandpos_left", "Hand_L"},
     {"knifehandpos", "Hand_R"},
   };
-
-  static List<GameObject> GetAllChildren(GameObject root)
-  {
-    List<GameObject> objs_to_return = new List<GameObject>();
-    List<GameObject> objs_to_search = new List<GameObject>();
-    objs_to_search.Add(root);
-
-    //get a list of all armature components
-    while (objs_to_search.Count > 0)
-    {
-      List<int> removal_idxs = new List<int>();
-      for (int i = 0; i < objs_to_search.Count; ++i)
-      {
-        GameObject o = objs_to_search[i];
-        objs_to_return.Add(o);
-        for (int j = 0; j < o.transform.childCount; ++j)
-        {
-          objs_to_search.Add(o.transform.GetChild(j).gameObject);
-        }
-        removal_idxs.Add(i);
-      }
-      removal_idxs.Reverse();
-      foreach (int i in removal_idxs)
-      {
-        objs_to_search.RemoveAt(i);
-      }
-    }
-    return objs_to_return;
-  }
-
-  static void set_vrc_param(string param_name, VRCExpressionParameters.Parameter p)
-  {
-    p.name = param_name;
-    p.valueType = VRCExpressionParameters.ValueType.Bool;
-    p.defaultValue = 0;
-    p.networkSynced = true;
-    p.saved = true;
-  }
-
-  static AnimatorControllerLayer init_layer(AnimatorController fx_ctrl, string name)
-  {
-    fx_ctrl.AddLayer(name);
-    AnimatorControllerLayer layer = fx_ctrl.layers[fx_ctrl.layers.Length - 1];
-
-    EditorUtility.SetDirty(layer.stateMachine);
-    return layer;
-  }
-
-  static AnimatorState init_state(AnimatorController fx_ctrl, AnimatorControllerLayer layer, string name, string anim_path, Vector3 pos)
-  {
-    AnimatorState s = layer.stateMachine.AddState(name, pos);
-    s.motion = AssetDatabase.LoadAssetAtPath<AnimationClip>(anim_path);
-
-    EditorUtility.SetDirty(s);
-    return s;
-  }
-
-  static AnimatorStateTransition init_transition(AnimatorController fx_ctrl, AnimatorState destination, float duration=0, float exit_time=0)
-  {
-    AnimatorStateTransition t = new AnimatorStateTransition();
-    t.duration = duration;
-    t.exitTime = exit_time;
-    t.hasExitTime = exit_time > 1e-6f;
-    t.destinationState = destination;
-
-    AssetDatabase.AddObjectToAsset(t, fx_ctrl);
-    t.hideFlags = HideFlags.HideInHierarchy;
-    EditorUtility.SetDirty(t);
-
-    return t;
-  }
-
-  static void addExpressionParameter(string name, ref VRCExpressionParameters para)
-  {
-    bool set = false;
-    foreach (VRCExpressionParameters.Parameter p in para.parameters)
-    {
-      if (p.name == "")
-      {
-        set_vrc_param(name, p);
-        set = true;
-        break;
-      }
-      if (p.name == name)
-      {
-        //then we have already added it in the past
-        return;
-      }
-    }
-    //if no free space, expand the parameter array and add a new one
-    if (!set)
-    {
-      List<VRCExpressionParameters.Parameter> new_params = new List<VRCExpressionParameters.Parameter>(para.parameters);
-      VRCExpressionParameters.Parameter new_vrc_param = new VRCExpressionParameters.Parameter();
-      set_vrc_param(name, new_vrc_param);
-      new_params.Add(new_vrc_param);
-      para.parameters = new_params.ToArray();
-
-      EditorUtility.SetDirty(para); //need to do this otherwise expression parameters don't save after re-opening unity
-    }
-  }
 
   [MenuItem("Tools/founta/KisaKnifeAdder")]
   public static void ShowWindow() => GetWindow<KisaKnifeAdder>("KisaKnifeAdder").Show(true);
@@ -275,11 +176,6 @@ public class KisaKnifeAdder : EditorWindow
         left_to_right.AddCondition(AnimatorConditionMode.Equals, 1, "GestureRight");
         knifehandleft.AddTransition(left_to_right);
 
-        //set layer weight
-        AnimatorControllerLayer[] layers = fx_ctrl.layers;
-        layers[fx_ctrl.layers.Length - 1].defaultWeight = 1;
-        fx_ctrl.layers = layers;
-
         EditorUtility.SetDirty(fx_ctrl);
 
         added = true;
@@ -303,11 +199,6 @@ public class KisaKnifeAdder : EditorWindow
         AnimatorStateTransition open_to_close = init_transition(fx_ctrl, sheathclose, 0.25f, 0.75f);
         open_to_close.AddCondition(AnimatorConditionMode.If, 0, "Grab");
         sheathopen.AddTransition(open_to_close);
-
-        //set layer weight
-        AnimatorControllerLayer[] layers = fx_ctrl.layers;
-        layers[fx_ctrl.layers.Length - 1].defaultWeight = 1;
-        fx_ctrl.layers = layers;
 
         EditorUtility.SetDirty(fx_ctrl);
 
