@@ -38,10 +38,10 @@ static public class founta_common
     return objs_to_return;
   }
 
-  public static void set_vrc_param(string param_name, VRCExpressionParameters.Parameter p)
+  public static void set_vrc_param(string param_name, VRCExpressionParameters.Parameter p, VRCExpressionParameters.ValueType type)
   {
     p.name = param_name;
-    p.valueType = VRCExpressionParameters.ValueType.Bool;
+    p.valueType = type;
     p.defaultValue = 0;
     p.networkSynced = true;
     p.saved = true;
@@ -113,14 +113,14 @@ static public class founta_common
     return t;
   }
 
-  public static void addExpressionParameter(string name, ref VRCExpressionParameters para)
+  public static void addExpressionParameter(string name, ref VRCExpressionParameters para, VRCExpressionParameters.ValueType type = VRCExpressionParameters.ValueType.Bool)
   {
     bool set = false;
     foreach (VRCExpressionParameters.Parameter p in para.parameters)
     {
       if (p.name == "")
       {
-        set_vrc_param(name, p);
+        set_vrc_param(name, p, type);
         set = true;
         break;
       }
@@ -135,7 +135,7 @@ static public class founta_common
     {
       List<VRCExpressionParameters.Parameter> new_params = new List<VRCExpressionParameters.Parameter>(para.parameters);
       VRCExpressionParameters.Parameter new_vrc_param = new VRCExpressionParameters.Parameter();
-      set_vrc_param(name, new_vrc_param);
+      set_vrc_param(name, new_vrc_param, type);
       new_params.Add(new_vrc_param);
       para.parameters = new_params.ToArray();
 
